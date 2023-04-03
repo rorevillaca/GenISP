@@ -114,8 +114,26 @@ For a deeper understanding of the model, the authors have also given the archite
 This is also exactly how we apply it, so as to reproduce the paper as closely as possible. The only parts where we might have differed from the original implementation is at the Instance norm and Maxpol levels where the authors haven't provided the kernal_size they use. The same is the case for the Avg Adapt Pool layer used. 
 
 ### MLP
+The (Multi Layer Perceptrion) MLP is a standard fully connected neural network. We have implemented this using the inbuilt pytorch class MLP in the following way: 
+```python
+
+from torchvision.ops import MLP
+  class WBNet(nn.Module):
+    .
+    .
+      .
+        self.mlp = MLP(in_channels = 64, 
+        hidden_channels = [3])
+        .
+        .
+        .
+        h = self.mlp(h)
+        return h
+```
+The hidden_channels arguemnt takes a list of ints which specify the number of hidden channels which in our case is 3. 
 
 ### Conv CC
+ConvCC is the second part of the neural network. This subsection is used to color correct the image. The network is very similar to ConvWB, the only difference is the number of outputs it produces. While ConvCC just white balances every channel, this network has to color correct it. This is done by having a 3x3 matrix be multiplied with the image instead of a 3x3 DIAGONAL matrix. This is visualized in the following image as seen in the paper
 ### Shallow ConvNet
 ### Detector
 ## Results
