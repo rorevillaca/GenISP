@@ -23,7 +23,7 @@
   - [Shallow ConvNet](#shallow-convnet)
   - [Detector](#detector)
 - [Results](#results)
-- [Discussion](#discussion)
+- [Discussion and Conclusion](#discussion-and-conclusion)
 ***
 <br>
 
@@ -86,5 +86,5 @@ To apply the CST matrix, it must be multiplied by the values for every pixel in 
 ### Shallow ConvNet
 ### Detector
 ## Results
-## Discussion
+## Discussion and Conclusion
 State if your reproduction results uphold the main conclusions of the paper
