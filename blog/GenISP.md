@@ -77,9 +77,42 @@ To apply the CST matrix, it must be multiplied by the values for every pixel in 
  
 
 ### Conv WB
+Conv WB is the first step of the neural network that will be trained in the process.  Some camera manufacturers implement a minimal ISP pipeline, e.g. in machine vision. ConvWB and ConvCC, can help adapt the colour space in such a case.
+
+ConvWB focuses on the white balancing of the input image. ConvWB predicts gain for each color channel of the input and controls to adjust global illumination levels and white balance of the image. Regressed weights $w_{ii}$ of a 3 × 3 diagonal WB matrix are applied to the image as in a traditional ISP pipeline:
+
+![](ConvWB.png)
+```python
+wb = WBNet() #WBNet is the network used by the authors and implemented with the same parameters
+wb.to(torch.double)
+output = wb(resized_image)
+
+output = torch.mean(output, 0)
+output = torch.diag(output)
+```
+The given code is used to take the image through the ConvWB part of the network and produce an output of size 3, this is then arranged in the form of the matrix as shown in the image. 
+```python
+img = prep_image
+img = img.to(torch.double)
+new_image_wb = torch.matmul(img, output)
+new_image_wb.shape
+```
+The original image is now taken (size: 1836, 2752) and the matrix multiplication operation is applied to white balance the original image. 
 
 ### Resizing (Bilinear Interpolation)
+The above matrix multiplication takes the image as its RGB components and multiplies it with the 3 weights the network produces. For the network, the images supplied are actually reduced to 256x256 resolution. This is done so as to decrease hardware load, given we are just trying to guage the white balancing and color correction aspects of the image which shouldn't be impacted much due to this size reduction. 
+
 ### Architecture
+The architecture of the model is provided in the paper. This architecture definitely lacks details and leaves some work for us to figure out the reproducibility especially if we are going to replicate the results. The architecture as given by the authors can be seen in the following image: 
+
+![](architecture.png)
+
+For a deeper understanding of the model, the authors have also given the architecture of the subnetworks used along with the number of neurons and the size of the kernels they have employed. This can also be seen in the following image: 
+
+![](WBCC.png)
+
+This is also exactly how we apply it, so as to reproduce the paper as closely as possible. The only parts where we might have differed from the original implementation is at the Instance norm and Maxpol levels where the authors haven't provided the kernal_size they use. The same is the case for the Avg Adapt Pool layer used. 
+
 ### MLP
 
 ### Conv CC
