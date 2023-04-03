@@ -152,7 +152,35 @@ new_image_cc = torch.matmul(img, output)
 new_image_cc = new_image_cc.permute(0, 3, 1, 2)
 ```
 ### Shallow ConvNet
+The shallow ConvNet is used to enhance the image as outputted by the WB and CC frameworks. In the words of the authors: `Color-corrected image is then enhanced by a shallow ConvNet`. This part of the network is where majority of the weights are and where the entire image is considered without size reductions. This network increases the number of outputs channels before finally converging. This might help the network look at structures in the image which otherwise are hard to find. The architecture of the model is already provided in the previous structure. 
+```python
+----------------------------------------------------
+Layer (type)        Output Shape           Param #
+====================================================
+Conv2d-1          [ -1, 16, 1834, 2750]    448
+InstanceNorm2d-2  [-1, 16, 1834, 2750]     0
+Conv2d-3          [-1, 64, 1832, 2748]     9,280
+InstanceNorm2d-4  [-1, 64, 1832, 2748]     0
+Conv2d-5          [-1, 3, 1832, 2748]      195
+====================================================
+Total params: 9,923
+Trainable params: 9,923
+Non-trainable params: 0
+----------------------------------------------------
+Input size (MB): 57.82
+Forward/backward pass size (MB): 6262.89
+Params size (MB): 0.04
+Estimated Total Size (MB): 6320.75
+----------------------------------------------------
+```
+This is the part of the code where we utilize the most hardware space given the size of the image and the number of channels we inflate it to. 
+The following methods is used to apply this network to the images: 
 
+```python
+final_images = ConvNet()
+final_images.to(torch.double)
+trained_image = final_images(new_image_cc)
+```
 ### Detector
 ## Results
 ## Discussion and Conclusion
