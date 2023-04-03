@@ -133,8 +133,26 @@ from torchvision.ops import MLP
 The hidden_channels arguemnt takes a list of ints which specify the number of hidden channels which in our case is 3. 
 
 ### Conv CC
-ConvCC is the second part of the neural network. This subsection is used to color correct the image. The network is very similar to ConvWB, the only difference is the number of outputs it produces. While ConvCC just white balances every channel, this network has to color correct it. This is done by having a 3x3 matrix be multiplied with the image instead of a 3x3 DIAGONAL matrix. This is visualized in the following image as seen in the paper
+ConvCC is the second part of the neural network. This subsection is used to color correct the image. The network is very similar to ConvWB, the only difference is the number of outputs it produces. While ConvCC just white balances every channel, this network has to color correct it. This is done by having a 3x3 matrix be multiplied with the image instead of a 3x3 DIAGONAL matrix. This is visualized in the following image as seen in the paper:
+![](Convcc.png)
+
+Overall, the network is defined in the same way as ConvWB, just with 9 outputs instead of 3. These 9 outputs are then applied to the original full sized image (with the ConvWB output) to get the final color and white balance corrected input image. 
+
+```python
+cc = CCNet()
+cc.to(torch.double)
+output = cc(resized_image)
+output = torch.mean(output, 0)
+output = output.reshape(3,3)
+# new_image_wb is the white balanced full size image
+img = new_image_wb
+
+new_image_cc = torch.matmul(img, output)
+# We apply permutations for comaptibility between the shallow ConvNet and CCNet
+new_image_cc = new_image_cc.permute(0, 3, 1, 2)
+```
 ### Shallow ConvNet
+
 ### Detector
 ## Results
 ## Discussion and Conclusion
