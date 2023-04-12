@@ -267,11 +267,26 @@ Above each bounding box is the label of the recognized object followed by its co
 
 ### **Forward Pass**
 
-As we were not able to perform the forward pass through the Shallow ConvNet, we skipped this part of the network and connected the output of ConvCC directly to the object detector model. By displaying the resulting images along with bounding boxes drawn over them, we were able to observe that our ISP pipeline was producing images that could be used for cognition although they were not optimal for it:
+As we were not able to perform the forward pass through the Shallow ConvNet, we skipped this part of the network and connected the output of ConvCC directly to the object detector model. By displaying the resulting images along with bounding boxes drawn over them, we were able to observe that our ISP pipeline was producing images that could be used for cognition although they were still not optimal for it:
 
 ![](./blog/retinanet_processed_image.png)
 
+***
 ### **Backpropagation**
+
+After the forward pass is complete, loss can be calculated with respect to the object recognition model's output. Loss can be minimized by making increments to the parameters of the neural network (weights and biases) that go against the gradient of the loss with respect to those parameters. As the value of the loss represents classification and regression error, adjustments that lead to its diminution imply the production of images that are more suitable for the object recognition model.
+
+### **Classification loss**
+
+Classification loss is modeled by alpha-balanced focal loss:
+
+![](./blog/alpha_focal_loss.png)
+![](./blog/pt_focal_loss.png)
+
+where y ∈ {±1} specifies the ground-truth class and p ∈ [0, 1] is the model’s estimated probability for the class with label y = 1.
+
+Focal loss is a modi
+
 
 ***
 ## **Results**
