@@ -42,7 +42,7 @@ Scientific publications should contain enough information (through explanations,
 Facing these challenges helped us understand what is needed to guarantee the reproductibility on the paper and the importance of correctly documenting and carefully explaining the details regarding the design and implementation of Deep Learning Models. The lessons learned in this project will be applied when performing our own research in the future. 
 
 
-This blog post is a detailed review and reproduction log of the method utilized in [GenISP: Neural ISP for Low Light Machine Cognition](https://arxiv.org/abs/2205.03688). Its objective is to comprise the theoretical knowledge and practical considerations that we required in order to imlement the method from scratch in [Python](https://github.com/rorevillaca/GenISP). We also include some lessons learned along the way, and some explanations and diagrams that would have been useful during the reproduction process. By writing this blog, we encourage the idea that scientific research should be fully transparent and reproducible.
+This blog post is a detailed review and reproduction log of the method utilized in [GenISP: Neural ISP for Low Light Machine Cognition](https://arxiv.org/abs/2205.03688). Its objective is to comprise the theoretical knowledge and practical considerations that we required in order to implement the method from scratch in [Python](https://github.com/rorevillaca/GenISP). We also include some lessons learned along the way, and some explanations and diagrams that would have been useful during the reproduction process. By writing this blog, we encourage the idea that scientific research should be fully transparent and reproducible.
 
 In the **Methods** section we explain each step of the model in a thorough and detailed way. We rely on textual descriptions and diagrams, and include code snippets when we consider it necessary. We also emphasize what are the input and the outputs of each step. In the **Results** section we report the performance obtained by our model, comparing it to the results from the original paper. Finally, the **Conclusions/Dicussion** section contains our results interpretation along with insights, difference sources, limitations and additional work that could further improve our reproduction. 
 
@@ -250,6 +250,19 @@ final_images.to(torch.double)
 trained_image = final_images(new_image_cc)
 ```
 ## **Object Detector**
+The objective of GenISP is to restore and enhance low-light images so that they are optimal for cognition by any pre-trained off-the-shelf object detector. In order to learn to do so, GenISP is guided during training by an object detector. The object detector of our choice is a single-stage RetinaNet, an object detector model proposed in the paper Focal Loss for Dense Object Detection by Lin, Goyal et al.
+
+Before deciding to use RetinaNet, we first attempted to use an OpenCV implementation of YoloV3 as our object recognition model. Although this model was very easy to use, it did not use PyTorch as its backbone and we had limited ability to modify it and to access its layers. As we realized that this could potentially block us during the implementation of the backpropagation mechanism, we decided to switch the model. 
+
+The choice of RetinaNet was motivated by the fact that it was referenced as being the object detector used to train GenISP in the GenISP paper, and because an easy to read and to modify PyTorch implementation of RetinaNet was freely available in the following GitHub repository: https://github.com/yhenon/pytorch-retinanet. This version also contains an implementation of the loss functions cited in the GenISP paper, alpha-balanced focal loss and smooth L1 loss.
+
+Although the code in the repository is dated and does not run as is, few modifications were necessary to repair it. We tested it by first giving it sample images from the internet, on which it succesfully recognized different objects with high confidence scores:
+
+![](./blog/retinanet_test_output.png)
+
+
+
+
 
 ***
 ## **Training the Network**
