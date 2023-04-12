@@ -289,12 +289,26 @@ After the forward pass is complete, loss can be calculated with respect to the o
 Classification loss is modeled by alpha-balanced focal loss:
 
 ![](./blog/alpha_focal_loss.png)
+
 ![](./blog/pt_focal_loss.png)
 
-where y ∈ {±1} specifies the ground-truth class and p ∈ [0, 1] is the model’s estimated probability for the class with label y = 1.
+where y ∈ {±1} specifies the ground-truth class, p ∈ [0, 1] is the model’s estimated probability for the class with label y = 1 and γ ≥ 0 is a tunable focusing parameter.
 
-Focal loss is a modi
+Focal loss is an extension to cross-entropy loss in which a modulating factor (1 − pt)^γ is added to reduce the impact of class imbalance. Easily classifiable negative examples tend to comprise the majority of the loss and to dominate the gradient, so down-weighting their impact allows the training to focus on the hard negatives.
 
+Alpha is a factor between 0 and 1 that can be set as inverse class frequency or treated as a hyperparameter to be set by cross-validation.
+
+### **Regression loss**
+
+Regression loss is modeled by smooth L1-loss:
+
+![](./blog/smooth_l1_loss.png)
+
+Where a squared term is used if the absolute element-wise error falls below a beta parameter and an L1 term is used otherwise. It is less sensitive to outliers than mean squared error loss and in some cases prevents exploding gradients.
+
+Both loss functions were already implemented in Yan Henon's RetinaNet implementation:
+
+![](./blog/focal_loss_implementation.png)
 
 ***
 ## **Results**
