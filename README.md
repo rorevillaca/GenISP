@@ -265,7 +265,13 @@ Although the code in the repository is dated and does not run as is, few modific
 
 ![](./blog/retinanet_test_output.png)
 
-Above each bounding box is the label of the recognized object followed by its confidence score. 
+The bounding boxes on this image were drawn by us. Above each bounding box is the label of the recognized object followed by its confidence score. 
+
+We used a pre-trained version of RetinaNet that is 50 layers deep (ResNet50). We load its weights from a state-dictionary:
+
+```
+model.load_state_dict(torch.load('coco_resnet_50_map_0_335_state_dict.pt', map_location=torch.device('cpu')), strict=False)
+```
 
 ***
 ## **Training the Network**
@@ -310,8 +316,61 @@ Both loss functions were already implemented in Yan Henon's RetinaNet implementa
 
 ![](./blog/focal_loss_implementation.png)
 
-***
+### **Optimization process**
+
+After the loss is calculated, gradients are automatically calculated by PyTorch with regards to the tensors where the property requires_grad is set to True. 
+
+The values of these tensors are adjusted by the Adam optimizer in a procedure of gradient descent which intends to reduce loss. Adam is implemented by the PyTorch library:
+
+```
+optimizer = optim.Adam(retinanet.parameters(), lr=1e-5)
+
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3, verbose=True)
+```
+
+The tensors are passed as parameters to the optimizer when it is initialized as well as the learning rate. This learning rate can be reduced when a metric stops improving (second line of the code).
+
+It is important to notice that although the optimizer is given RetinaNet's parameters in this code snippet, in our training we should not modify the values of these parameters. 
+
+Only the parameters of the layers of the ISP should have their values modified. The parameters of RetinaNet should be frozen as we intend to train an ISP in order to learn to produce images that are optimal for cognition by an off-the-shelf object recognition model, not to modify the functioning of this object recognition model in order to optimize the recognition of the outputs of GenISP.
+
+## **Training preparation**
+
+In order to proceed with training, we provide the model with the following .csv files:
+
+```
+img_path,x1,y1,x2,y2,class_name
+images_train/DSC01088,468,2285,810,2577,bicycle
+images_train/DSC01088,2754,2120,2872,2555,person
+images_train/DSC01088,3554,2142,3719,2650,person
+images_train/DSC01088,3776,2149,3966,2647,person
+images_train/DSC01088,3947,2092,4032,2339,person
+```
+
+The first .csv file contains the list of annotations for the files in the training set.
+
+```
+class_name, number
+person,0
+bicycle,1
+car,2
+```
+
+The second .csv file links the names of classes of objects present in the annotations to RetinaNet numerical class outputs.
+
+These .csv files can be loaded by a dataloader present in Yan Henon's implementation of RetinaNet:
+
+```
+dataset_train = CSVDataset(train_file=csv_train, class_list=csv_classes)
+```
+
 ## **Results**
+
+As we were not able to finish implementing the backpropagation mechanism, we were not able to obtain results. However, we obtained images that could potentially be used for object recognition after passing by the modules ConvCC and ConvWB (Shallow ConvNet was skipped because of hardware limitations).
+
+We were able to succesfully use these images to calculate loss:
+
+![](./blog/training_practice.png)
 
 The constraints posed by the memory limitations prevent us from running the network with more than 5 images at a time. This averts us from training the network with the provided training set (+2,500 images). A workaround is to reduce the image size, or to convert it to a smaller format (such as .png), but this defeats the objective of the paper, which is to leverage the raw image values and metadata to replace a predefined ISP. We therefore rely on the succesfull forward and backward pass for a small batch of images from the train set.    
 
