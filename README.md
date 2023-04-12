@@ -16,16 +16,16 @@
   - [**CST Matrix**](#cst-matrix)
   - [**Preprocessing Approach**](#preprocessing-approach)
 - [**Image Enhancement**](#image-enhancement)
-  - [**Conv WB**](#conv-wb)
   - [**Resizing (Bilinear Interpolation)**](#resizing-bilinear-interpolation)
-  - [**Architecture**](#architecture)
   - [**MLP**](#mlp)
+  - [**Conv WB**](#conv-wb)
   - [**Conv CC**](#conv-cc)
   - [**Shallow ConvNet**](#shallow-convnet)
 - [**Object Detector**](#object-detector)
 - [**Training the Network**](#training-the-network)
   - [**Forward Pass**](#forward-pass)
   - [**Backpropagation**](#backpropagation)
+  - [**Classification loss**](#classification-loss)
 - [**Results**](#results)
 - [**Discussion and Conclusion**](#discussion-and-conclusion)
 ***
@@ -42,7 +42,7 @@ Scientific publications should contain enough information (through explanations,
 Facing these challenges helped us understand what is needed to guarantee the reproductibility on the paper and the importance of correctly documenting and carefully explaining the details regarding the design and implementation of Deep Learning Models. The lessons learned in this project will be applied when performing our own research in the future. 
 
 
-This blog post is a detailed review and reproduction log of the method utilized in [GenISP: Neural ISP for Low Light Machine Cognition](https://arxiv.org/abs/2205.03688). Its objective is to comprise the theoretical knowledge and practical considerations that we required in order to implement the method from scratch in [Python](https://github.com/rorevillaca/GenISP). We also include some lessons learned along the way, and some explanations and diagrams that would have been useful during the reproduction process. By writing this blog, we encourage the idea that scientific research should be fully transparent and reproducible.
+This blog post is a detailed review and reproduction log of the method utilized in [GenISP: Neural ISP for Low Light Machine Cognition](https://arxiv.org/abs/2205.03688). Its objective is to comprise the theoretical knowledge and practical considerations that we required in order to implement the method from scratch in Python ([preprocessing](https://github.com/rorevillaca/GenISP) and [main method](https://colab.research.google.com/drive/1obws31nGbWPPG2ggn0C4Snk0hpwnyOIU?usp=sharing)). We also include some lessons learned along the way, and some explanations and diagrams that would have been useful during the reproduction process. By writing this blog, we encourage the idea that scientific research should be fully transparent and reproducible.
 
 In the **Methods** section we explain each step of the model in a thorough and detailed way. We rely on textual descriptions and diagrams, and include code snippets when we consider it necessary. We also emphasize what are the input and the outputs of each step. In the **Results** section we report the performance obtained by our model, comparing it to the results from the original paper. Finally, the **Conclusions/Dicussion** section contains our results interpretation along with insights, difference sources, limitations and additional work that could further improve our reproduction. 
 
@@ -145,44 +145,15 @@ ___
 
 ## **Image Enhancement** 
 
-### **Conv WB**
-Conv WB is the first step of the neural network that will be trained in the process.  Some camera manufacturers implement a minimal ISP pipeline, e.g. in machine vision. ConvWB and ConvCC, can help adapt the colour space in such a case.
+The enhancement pipeline is composed of three different Neural Networks: ConvWB, ConvCC and a shallow ConvNet. The first two networks have an almost identical linear structure, and learn parameters to tune the white balance and color correction of the image. The shallow ConvNet is non-linear, aiming to tune the visibility (brightness) of the image. 
 
-ConvWB focuses on the white balancing of the input image. ConvWB predicts gain for each color channel of the input and controls to adjust global illumination levels and white balance of the image. Regressed weights $w_{ii}$ of a 3 × 3 diagonal WB matrix are applied to the image as in a traditional ISP pipeline:
-
-![](./blog/ConvWB.png)
-```python
-wb = WBNet() #WBNet is the network used by the authors and implemented with the same parameters
-wb.to(torch.double)
-output = wb(resized_image)
-
-output = torch.mean(output, 0)
-output = torch.diag(output)
-```
-The given code is used to take the image through the ConvWB part of the network and produce an output of size 3, this is then arranged in the form of the matrix as shown in the image. 
-```python
-img = prep_image
-img = img.to(torch.double)
-new_image_wb = torch.matmul(img, output)
-new_image_wb.shape
-```
-The original image is now taken (size: 1836, 2752) and the matrix multiplication operation is applied to white balance the original image. 
+Although ConvCC and ConvWB could be combined into a single network, the method treats them separately  aiming to improve each individual optimization.
 
 ### **Resizing (Bilinear Interpolation)**
-The above matrix multiplication takes the image as its RGB components and multiplies it with the 3 weights the network produces. For the network, the images supplied are actually reduced to 256x256 resolution. This is done so as to decrease hardware load, given we are just trying to guage the white balancing and color correction aspects of the image which shouldn't be impacted much due to this size reduction. 
-
-### **Architecture**
-The architecture of the model is provided in the paper. This architecture definitely lacks details and leaves some work for us to figure out the reproducibility especially if we are going to replicate the results. The architecture as given by the authors can be seen in the following image: 
-
-
-For a deeper understanding of the model, the authors have also given the architecture of the subnetworks used along with the number of neurons and the size of the kernels they have employed. This can also be seen in the following image: 
-
-![](./blog/WBCC.png)
-
-This is also exactly how we apply it, so as to reproduce the paper as closely as possible. The only parts where we might have differed from the original implementation is at the Instance norm and Maxpol levels where the authors haven't provided the kernal_size they use. The same is the case for the Avg Adapt Pool layer used. 
+For ConvWB and ConvCC, the input images are reduced to a 256x256 pixel resolution. This is done so as to decrease hardware load; the white balancing and color correction aspects of the image shouldn't be impacted much due to this size reduction but more by its overall statistical structure which is kept even after resizing. 
 
 ### **MLP**
-The (Multi Layer Perceptrion) MLP is a standard fully connected neural network. We have implemented this using the inbuilt pytorch class MLP in the following way: 
+The (Multi Layer Perceptrion) MLP is a standard fully connected neural network. In this method, it is used as the last layer for the ConvCC and ConvWB networks. Its architecture allows to define the number of scalar vectors, a feature that results useful in the context of these networks. Our implementation of the MLP is based on the inbuilt Pytorch class: 
 ```python
 
 from torchvision.ops import MLP
@@ -198,13 +169,38 @@ from torchvision.ops import MLP
         h = self.mlp(h)
         return h
 ```
-The hidden_channels arguemnt takes a list of ints which specify the number of hidden channels which in our case is 3. 
+The hidden_channels argument is used to tune the length of the output vector (number of scalars it outputs). 
+
+### **Conv WB**
+
+ConvWB focuses on the white balancing of the input image. The NN predicts gain for each color channel of the input and controls to adjust global illumination levels and white balance of the image.
+ConvWB implements an image-to-parameters network illustrated below. 
+
+![](./blog/conv_wb_cc.png)
+
+ConvWB takes in the resized image and implements an MLP in its last layer to output a vector of 3 weights. These are arranged in the diagonal of a 3 × 3 diagonal WB matrix. This matrix is applied to the image by multiplying it by the value for each pixel:
+
+![](./blog/ConvWB.png)
+
+Below is the torch implementation of these operations:
+```python
+wb = WBNet() #WBNet follows the architecture defined in the paper
+wb.to(torch.double)
+output = wb(resized_image) #ConvWB applied to a resized (256x256) version of the image
+
+output = torch.mean(output, 0) 
+output = torch.diag(output) #Vector arranged into a 3x3 matrix
+
+img = prep_image
+img = img.to(torch.double)
+new_image_wb = torch.matmul(img, output) #Each pixel is multiplied by the resulting matrix
+```
 
 ### **Conv CC**
-ConvCC is the second part of the neural network. This subsection is used to color correct the image. The network is very similar to ConvWB, the only difference is the number of outputs it produces. While ConvCC just white balances every channel, this network has to color correct it. This is done by having a 3x3 matrix be multiplied with the image instead of a 3x3 DIAGONAL matrix. This is visualized in the following image as seen in the paper:
+ConvCC follows ConvWB and is used to color correct the image. The network's architecture is identical to ConvWB's, except for the number of outputs it produces. While ConvCC just white balances every channel, this network has to color correct it. This is done by implementing an MLP which outputs a 9-value vector. These values are arranged into a 3x3 matrix and multiplied by the current version of the image. This operation is expressed as:
 ![](./blog/Convcc.png)
 
-Overall, the network is defined in the same way as ConvWB, just with 9 outputs instead of 3. These 9 outputs are then applied to the original full sized image (with the ConvWB output) to get the final color and white balance corrected input image. 
+We hypothesize that the order of the scalars on the matrix has no effect on the output of the model, as long as this arrangement is consistent across the passes through the network. The code for the application of this network is presented below: 
 
 ```python
 cc = CCNet()
@@ -219,8 +215,14 @@ new_image_cc = torch.matmul(img, output)
 # We apply permutations for comaptibility between the shallow ConvNet and CCNet
 new_image_cc = new_image_cc.permute(0, 3, 1, 2)
 ```
+
+
 ### **Shallow ConvNet**
-The shallow ConvNet is used to enhance the image as outputted by the WB and CC frameworks. In the words of the authors: `Color-corrected image is then enhanced by a shallow ConvNet`. This part of the network is where majority of the weights are and where the entire image is considered without size reductions. This network increases the number of outputs channels before finally converging. This might help the network look at structures in the image which otherwise are hard to find. The architecture of the model is already provided in the previous structure. 
+The shallow ConvNet is the last step in the enhancement pipeline. In contrast with the two previous NNs, this model is applied directly to the current version to the image, transforming it directly. The architecture is illustrated below:
+
+![](./blog/Convcc_arch.png)
+
+The shallow ConvNet enhances the brightness of the image through a non-linear transformation. This module concentrates the majority of the parameters of the model as it considers the entire image (i.e. without size reductions). This network increases the number of output channels before finally converging helping the it focus on structures in the image which otherwise are hard to find. A summary of the network follows: 
 ```python
 ----------------------------------------------------
 Layer (type)        Output Shape           Param #
@@ -241,14 +243,17 @@ Params size (MB): 0.04
 Estimated Total Size (MB): 6320.75
 ----------------------------------------------------
 ```
-This is the part of the code where we utilize the most hardware space given the size of the image and the number of channels we inflate it to. 
-The following methods is used to apply this network to the images: 
+The following methods are used to apply this network to the images: 
 
 ```python
 final_images = ConvNet()
 final_images.to(torch.double)
 trained_image = final_images(new_image_cc)
+
 ```
+
+We note that we were not able to perform the forward pass through the Shallow ConvNet due to the size of the images and the number of parameters this networks has. We first attempted to run the process locally and then in the Google Collab notebook, but the forward pass was enoough to exceed the provided resources. For this reason, the network is coded in the file but left out of the executions.
+
 ## **Object Detector**
 The objective of GenISP is to restore and enhance low-light images so that they are optimal for cognition by any pre-trained off-the-shelf object detector. In order to learn to do so, GenISP is guided during training by an object detector. The object detector of our choice is a single-stage RetinaNet, an object detector model proposed in the paper Focal Loss for Dense Object Detection by Lin, Goyal et al.
 
@@ -267,9 +272,12 @@ Above each bounding box is the label of the recognized object followed by its co
 
 ### **Forward Pass**
 
-As we were not able to perform the forward pass through the Shallow ConvNet, we skipped this part of the network and connected the output of ConvCC directly to the object detector model. By displaying the resulting images along with bounding boxes drawn over them, we were able to observe that our ISP pipeline was producing images that could be used for cognition although they were still not optimal for it:
+As mentioned earlier, the preprocessing of the images was performed locally to reduce the online resources needed for the implementation. The preprocessed images are downloaded in the notebook and run through the ConvWB and ConvCC architectures (after the necessary rescaling).  
+
+Due to the memory issues regarding the Shallow ConvNet, the transformed output of ConvCC is input directly to the object detector model. By displaying the resulting images along with bounding boxes drawn over them, we were able to observe that our ISP pipeline was producing images that could be used for cognition. 
 
 ![](./blog/retinanet_processed_image.png)
+
 
 ***
 ### **Backpropagation**
@@ -291,6 +299,9 @@ Focal loss is a modi
 ***
 ## **Results**
 
+The constraints posed by the memory limitations prevent us from running the network with more than 5 images at a time. This averts us from training the network with the provided training set (+2,500 images). A workaround is to reduce the image size, or to convert it to a smaller format (such as .png), but this defeats the objective of the paper, which is to leverage the raw image values and metadata to replace a predefined ISP. We therefore rely on the succesfull forward and backward pass for a small batch of images from the train set.    
+
 ***
+
 ## **Discussion and Conclusion**
-State if your reproduction results uphold the main conclusions of the paper
+This project provides the code and documentation used to reproduce the GenISP method. By reproducing the original paper, we applied the core concepts of the course (particularly CNNs) to develop a working Neural architecture. The overall process encouraged us to deeply understand the method (and the assumed background knowledge), to question and understand its characteristics and considerations, and most importantly, to identify aspects that are crucial for scientific reproductibility. We acknowledge the do's (and don'ts) of scientific research communication. We hope that the detailed explanation, along with the code suffices for those who wish to understand, reproduce or extend this method.  
