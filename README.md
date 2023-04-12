@@ -1,5 +1,3 @@
-<h1 style="text-align: center;">GenISP: Neural ISP for Low Light Machine Cognition</h1>
-
 <h3 style="text-align: center;">A reproduction by R. Revilla Llaca, V. Costa and P. Jain</h2>
 
 <br><br>
