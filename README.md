@@ -26,6 +26,9 @@
   - [**Forward Pass**](#forward-pass)
   - [**Backpropagation**](#backpropagation)
   - [**Classification loss**](#classification-loss)
+  - [**Regression loss**](#regression-loss)
+  - [**Optimization process**](#optimization-process)
+- [**Training preparation**](#training-preparation)
 - [**Results**](#results)
 - [**Discussion and Conclusion**](#discussion-and-conclusion)
 ***
@@ -368,11 +371,11 @@ dataset_train = CSVDataset(train_file=csv_train, class_list=csv_classes)
 
 As we were not able to finish implementing the backpropagation mechanism, we were not able to obtain results. However, we obtained images that could potentially be used for object recognition after passing by the modules ConvCC and ConvWB (Shallow ConvNet was skipped because of hardware limitations).
 
-We were able to succesfully use these images to calculate loss:
+We are able to succesfully use these images to calculate classification and regression loss:
 
 ![](./blog/training_practice.png)
 
-The constraints posed by the memory limitations prevent us from running the network with more than 5 images at a time. This averts us from training the network with the provided training set (+2,500 images). A workaround is to reduce the image size, or to convert it to a smaller format (such as .png), but this defeats the objective of the paper, which is to leverage the raw image values and metadata to replace a predefined ISP. We therefore rely on the succesfull forward and backward pass for a small batch of images from the train set.    
+The constraints posed by the memory limitations prevent us from running the network with more than 5 images at a time. This averts us from training the network with the provided training set (+2,500 images). A workaround is to reduce the image size, or to convert it to a smaller format (such as .png), but this defeats the objective of the paper, which is to leverage the raw image values and metadata to replace a predefined ISP. We therefore rely on the succesfull forward pass and loss calculation for a small batch of images from the train set.    
 
 ***
 
