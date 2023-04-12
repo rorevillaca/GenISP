@@ -8,19 +8,22 @@
 ## **Contents**
 - [**Contents**](#contents)
 - [**Introduction**](#introduction)
-- [**Method**](#method)
-  - [**Method Overview**](#method-overview)
+- [**Method Overview**](#method-overview)
+- [**Preprocessing pipeline**](#preprocessing-pipeline)
   - [**Short Overview of RAW Files**](#short-overview-of-raw-files)
   - [**Packing**](#packing)
   - [**Averaging Greens**](#averaging-greens)
   - [**CST Matrix**](#cst-matrix)
+  - [**Preprocessing Approach**](#preprocessing-approach)
+- [**Image Enhancement**](#image-enhancement)
   - [**Conv WB**](#conv-wb)
   - [**Resizing (Bilinear Interpolation)**](#resizing-bilinear-interpolation)
   - [**Architecture**](#architecture)
   - [**MLP**](#mlp)
   - [**Conv CC**](#conv-cc)
   - [**Shallow ConvNet**](#shallow-convnet)
-  - [**Detector**](#detector)
+- [**Object Detector**](#object-detector)
+- [**Training the Network**](#training-the-network)
   - [**Forward Pass**](#forward-pass)
   - [**Backpropagation**](#backpropagation)
 - [**Results**](#results)
@@ -43,11 +46,16 @@ This blog post is a detailed review and reproduction log of the method utilized 
 
 In the **Methods** section we explain each step of the model in a thorough and detailed way. We rely on textual descriptions and diagrams, and include code snippets when we consider it necessary. We also emphasize what are the input and the outputs of each step. In the **Results** section we report the performance obtained by our model, comparing it to the results from the original paper. Finally, the **Conclusions/Dicussion** section contains our results interpretation along with insights, difference sources, limitations and additional work that could further improve our reproduction. 
 
+<br><br>
 
-## **Method**
-### **Method Overview**
+## **Method Overview**
 
-GenISP[...]
+GenISP is a neural Image Signal Processor (ISP) able to enhance RAW image files as inputs to pretrained object detectors. The method avoids fine-tuning to specific sensor data by leveraging image metadata along with the RAW image files to transform the image to optimize object detection. The method consists of a preprocessing pipeline, followed by a color processing stage carried out by two networks (ConvWB and ConvCC) and a brightness enhancement carried out by a shallow ConvNet. The method is illustrated below:
+
+![](./blog/architecture.png)
+
+
+## **Preprocessing pipeline**
 
 ### **Short Overview of RAW Files**
 RAW is a class of computer files containing all the information available to a camera sensor when the shutter is clicked. This information is usually split into two files: the image data, that represents the light intensity and color of a scene in pixels, and the metadata containing the contextual information of the image. 
@@ -74,7 +82,7 @@ As can be seen, the information for each pixel is contained in contiguous 2-by-2
 
 The goal of packing (also known as demosaicing) is to extract the information for each color channel into its own array. The dimensions of the resulting arrays will be half of those in the original (RAW) array. The packing procedure for the red channel is illustrated below. 
 
-![](g7916.png)
+![](./blog/g7916.png)
 
 To pack the RAW images, we can simply subset the values according to their index and store them in an array for each channel.
 
@@ -82,21 +90,67 @@ To pack the RAW images, we can simply subset the values according to their index
 
 In the paper the green channels are averaged linearly, resulting in the standard RGB channels. This process is shown below: 
 
-![](g7985.png)
+![](./blog/g7985.png)
 
 ### **CST Matrix**
 
 As a last preprocessing step, the image is converted to the XYZ color space. As the paper explains, converting the images to this device-independent color space ensures that the method generalizes to unseen camera sensors. The transformation is performed by applying the CST matrix, which is included within the image metadata. 
 
-To apply the CST matrix, it must be multiplied by the values for every pixel in the image. An example is provided below:
+To apply the CST matrix, it must be multiplied by the values for every pixel in the image. In order to do this, only the first three rows (corresponding to the R,G,B channels) are considered. Below is the CST matrix for some models of Sony Alpha cameras:
+
+```python
+CTS Matrix:
+[[ 1.0315 -0.439  -0.0937]
+ [-0.4859  1.2734  0.2365]
+ [-0.0734  0.1537  0.5997]
+ [ 0.      0.      0.    ]]
+```
  
+### **Preprocessing Approach**
+
+The following function is used to preprocess the images:
+```python
+def pack_avg_cst(raw_filename):
+    with rawpy.imread(raw_filename) as raw:
+        # Get raw image data
+        image = np.array(raw.raw_image, dtype=np.double)
+
+        # Get the raw pattern of the photo
+        n_colors = raw.num_colors
+        colors = np.frombuffer(raw.color_desc, dtype=np.byte)
+        pattern = np.array(raw.raw_pattern)
+        i_0 = np.where(colors[pattern] == colors[0])
+        i_1 = np.where(colors[pattern] == colors[1])
+        i_2 = np.where(colors[pattern] == colors[2])
+
+        # Pack image and average green channels
+        image_packed = np.empty((image.shape[0]//2, image.shape[1]//2, n_colors))
+        image_packed[:, :, 0] = image[i_0[0][0]::2, i_0[1][0]::2]
+        image_packed[:, :, 1]  = (image[i_1[0][0]::2, i_1[1][0]::2] + image[i_1[0][1]::2, i_1[1][1]::2]) / 2
+        image_packed[:, :, 2]  = image[i_2[0][0]::2, i_2[1][0]::2]
+
+        # CST Conversion
+        cst = np.array(raw.rgb_xyz_matrix[0:3, :], dtype=np.double)        
+        # Matrix-vector product for each pixel
+        image_sRGB = np.einsum('ij,...j', cst, image_packed)
+
+```
+
+
+In order to reduce computational load, a subset of 100 images was selected from the provided dataset (wighting over 50GB). The preprocessing stage for these images was performed locally, and the result was uploaded to Google Collab, where the rest of the method was implemented. At this point, color correction and brightness of the images has not yet taken place, making them look dark and greenish:
+
+![Preprocessed example](./blog/preprocessed_example.png)
+
+___
+
+## **Image Enhancement** 
 
 ### **Conv WB**
 Conv WB is the first step of the neural network that will be trained in the process.  Some camera manufacturers implement a minimal ISP pipeline, e.g. in machine vision. ConvWB and ConvCC, can help adapt the colour space in such a case.
 
 ConvWB focuses on the white balancing of the input image. ConvWB predicts gain for each color channel of the input and controls to adjust global illumination levels and white balance of the image. Regressed weights $w_{ii}$ of a 3 × 3 diagonal WB matrix are applied to the image as in a traditional ISP pipeline:
 
-![](ConvWB.png)
+![](./blog/ConvWB.png)
 ```python
 wb = WBNet() #WBNet is the network used by the authors and implemented with the same parameters
 wb.to(torch.double)
@@ -120,11 +174,10 @@ The above matrix multiplication takes the image as its RGB components and multip
 ### **Architecture**
 The architecture of the model is provided in the paper. This architecture definitely lacks details and leaves some work for us to figure out the reproducibility especially if we are going to replicate the results. The architecture as given by the authors can be seen in the following image: 
 
-![](architecture.png)
 
 For a deeper understanding of the model, the authors have also given the architecture of the subnetworks used along with the number of neurons and the size of the kernels they have employed. This can also be seen in the following image: 
 
-![](WBCC.png)
+![](./blog/WBCC.png)
 
 This is also exactly how we apply it, so as to reproduce the paper as closely as possible. The only parts where we might have differed from the original implementation is at the Instance norm and Maxpol levels where the authors haven't provided the kernal_size they use. The same is the case for the Avg Adapt Pool layer used. 
 
@@ -149,7 +202,7 @@ The hidden_channels arguemnt takes a list of ints which specify the number of hi
 
 ### **Conv CC**
 ConvCC is the second part of the neural network. This subsection is used to color correct the image. The network is very similar to ConvWB, the only difference is the number of outputs it produces. While ConvCC just white balances every channel, this network has to color correct it. This is done by having a 3x3 matrix be multiplied with the image instead of a 3x3 DIAGONAL matrix. This is visualized in the following image as seen in the paper:
-![](Convcc.png)
+![](./blog/Convcc.png)
 
 Overall, the network is defined in the same way as ConvWB, just with 9 outputs instead of 3. These 9 outputs are then applied to the original full sized image (with the ConvWB output) to get the final color and white balance corrected input image. 
 
@@ -196,13 +249,18 @@ final_images = ConvNet()
 final_images.to(torch.double)
 trained_image = final_images(new_image_cc)
 ```
-### **Detector**
+## **Object Detector**
+
+***
+## **Training the Network**
 
 ### **Forward Pass**
 
 ### **Backpropagation**
 
-
+***
 ## **Results**
+
+***
 ## **Discussion and Conclusion**
 State if your reproduction results uphold the main conclusions of the paper
