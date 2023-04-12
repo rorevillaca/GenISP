@@ -256,18 +256,20 @@ Before deciding to use RetinaNet, we first attempted to use an OpenCV implementa
 
 The choice of RetinaNet was motivated by the fact that it was referenced as being the object detector used to train GenISP in the GenISP paper, and because an easy to read and to modify PyTorch implementation of RetinaNet was freely available in the following GitHub repository: https://github.com/yhenon/pytorch-retinanet. This version also contains an implementation of the loss functions cited in the GenISP paper, alpha-balanced focal loss and smooth L1 loss.
 
-Although the code in the repository is dated and does not run as is, few modifications were necessary to repair it. We tested it by first giving it sample images from the internet, on which it succesfully recognized different objects with high confidence scores:
+Although the code in the repository is dated and does not run as is, few modifications were necessary to repair it. We tested it by first giving it sample images from the internet, on which it succesfully recognized different objects:
 
 ![](./blog/retinanet_test_output.png)
 
-
-
-
+Above each bounding box is the label of the recognized object followed by its confidence score. 
 
 ***
 ## **Training the Network**
 
 ### **Forward Pass**
+
+As we were not able to perform the forward pass through the Shallow ConvNet, we skipped this part of the network and connected the output of ConvCC directly to the object detector model. By displaying the resulting images along with bounding boxes drawn over them, we were able to observe that our ISP pipeline was producing images that could be used for cognition although they were not optimal for it:
+
+![](./blog/retinanet_processed_image.png)
 
 ### **Backpropagation**
 
