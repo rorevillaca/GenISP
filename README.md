@@ -249,6 +249,8 @@ final_images = ConvNet()
 final_images.to(torch.double)
 trained_image = final_images(new_image_cc)
 ```
+
+***
 ## **Object Detector**
 The objective of GenISP is to restore and enhance low-light images so that they are optimal for cognition by any pre-trained off-the-shelf object detector. In order to learn to do so, GenISP is guided during training by an object detector. The object detector of our choice is a single-stage RetinaNet, an object detector model proposed in the paper Focal Loss for Dense Object Detection by Lin, Goyal et al.
 
@@ -295,6 +297,12 @@ Alpha is a factor between 0 and 1 that can be set as inverse class frequency or 
 Regression loss is modeled by smooth L1-loss:
 
 ![](./blog/smooth_l1_loss.png)
+
+Where a squared term is used if the absolute element-wise error falls below a beta parameter and an L1 term is used otherwise. It is less sensitive to outliers than mean squared error loss and in some cases prevents exploding gradients.
+
+Both loss functions were already implemented in Yan Henon's RetinaNet implementation:
+
+![](./blog/focal_loss_implementation.png)
 
 ***
 ## **Results**
