@@ -31,6 +31,7 @@
 - [**Training preparation**](#training-preparation)
 - [**Results**](#results)
 - [**Discussion and Conclusion**](#discussion-and-conclusion)
+- [**Task division**](#task-division)
 ***
 <br>
 
@@ -380,4 +381,15 @@ The constraints posed by the memory limitations prevent us from running the netw
 ***
 
 ## **Discussion and Conclusion**
-This project provides the code and documentation used to reproduce the GenISP method. By reproducing the original paper, we applied the core concepts of the course (particularly CNNs) to develop a working Neural architecture. The overall process encouraged us to deeply understand the method (and the assumed background knowledge), to question and understand its characteristics and considerations, and most importantly, to identify aspects that are crucial for scientific reproductibility. We acknowledge the do's (and don'ts) of scientific research communication. We hope that the detailed explanation, along with the code suffices for those who wish to understand, reproduce or extend this method.  
+This project provides the code and documentation used to reproduce the GenISP method. By reproducing the original paper, we applied the core concepts of the course (particularly CNNs) to develop a working Neural architecture. The overall process encouraged us to deeply understand the method (and the assumed background knowledge), to question and understand its characteristics and considerations, and most importantly, to identify aspects that are crucial for scientific reproductibility. We acknowledge the do's (and don'ts) of scientific research communication. We hope that the detailed explanation, along with the code suffices for those who wish to understand, reproduce or extend this method. 
+
+
+## **Task division**
+
+Each team member is responsible for the following tasks:
+
+| Student      | Tasks |
+| ----------- | ----------- |
+| Vitor Costa      | Detector model reproduction and adapatation, loss functions       |
+| Prakhar Jain   | ConvWB, ConvCC and ShallowNet Implementation        |
+| Rodrigo Revilla   | Image loading and preprocessing, forward pass        |
