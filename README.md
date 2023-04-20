@@ -390,6 +390,8 @@ Each team member is responsible for the following tasks:
 
 | Student      | Tasks |
 | ----------- | ----------- |
-| Vitor Costa      | Detector model reproduction and adapatation, loss functions       |
+| Vitor Costa      | Detector model reproduction and adaptation, loss functions, backward pass       |
 | Prakhar Jain   | ConvWB, ConvCC and ShallowNet Implementation        |
 | Rodrigo Revilla   | Image loading and preprocessing, forward pass        |
+
+Each team member wrote about their respective tasks on the blog.
